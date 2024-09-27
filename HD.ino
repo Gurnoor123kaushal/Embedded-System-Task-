@@ -2,123 +2,98 @@
 #include <WiFiNINA.h>
 #include <Firebase_Arduino_WiFiNINA.h>
 
-// Firebase configuration
-#define FIREBASE_HOST "trafficlight-1b841-default-rtdb.firebaseio.com"
-#define FIREBASE_AUTH "NZwCPCBdtGJMRdA4MTNkLTjrYmaYIeoK0sgEU8RT"
+// Firebase settings
+const char* FIREBASE_URL = "trafficlight-1b841-default-rtdb.firebaseio.com";
+const char* FIREBASE_SECRET = "NZwCPCBdtGJMRdA4MTNkLTjrYmaYIeoK0sgEU8RT";
+
 // WiFi credentials
-#define WIFI_SSID "Gurnoor "
-#define WIFI_PASSWORD "GunroorIphone"
+const char* WIFI_NAME = "Gurnoor ";
+const char* WIFI_PASS = "GunroorIphone";
 
-// Firebase data path
-const String firebasePath = "/Light/LED";
+// Firebase data location
+const String FIREBASE_DATA_PATH = "/TrafficSignal/State";
 
-// LED pins
+// LED pin assignments
 const int RED_LED_PIN = 5;
 const int BLUE_LED_PIN = 6;
 const int GREEN_LED_PIN = 7;
 
-FirebaseData firebaseData;
+FirebaseData fbData;
 
-void setup()
-{
-  Serial.begin(9600);
-  pinMode(RED_LED_PIN, OUTPUT);
-  pinMode(BLUE_LED_PIN, OUTPUT);
-  pinMode(GREEN_LED_PIN, OUTPUT);
+void setupNetworkAndDatabase();
+void updateDatabaseState(const String& state);
+String readDatabaseState();
+void setLightStates(bool red, bool yellow, bool green);
 
-  // Connect to Wi-Fi
-  connectToWiFi();
-
-  // Initialize Firebase
-  initializeFirebase();
-
-  // Set initial status to "OFF"
-  setFirebaseStatus("OFF");
+void setup() {
+  Serial.begin(115200);
+  
+  pinMode(LED_RED, OUTPUT);
+  pinMode(LED_YELLOW, OUTPUT);
+  pinMode(LED_GREEN, OUTPUT);
+  
+  setupNetworkAndDatabase();
+  updateDatabaseState("OFF");
 }
 
-void loop()
-{
-  // Read status from Firebase
-  String status = getFirebaseStatus();
-
-  if (status == "red")
-  {
-    controlLEDs(HIGH, LOW, LOW);
-    Serial.println("Turning the RED LED ON");
+void loop() {
+  String currentState = readDatabaseState();
+  
+  if (currentState == "red") {
+    setLightStates(true, false, false);
+    Serial.println("Red light activated");
+  } else if (currentState == "yellow") {
+    setLightStates(false, true, false);
+    Serial.println("Yellow light activated");
+  } else if (currentState == "green") {
+    setLightStates(false, false, true);
+    Serial.println("Green light activated");
+  } else if (currentState == "OFF") {
+    setLightStates(false, false, false);
+    Serial.println("All lights deactivated");
+  } else {
+    Serial.println("Unrecognized state from Firebase: " + currentState);
   }
-  else if (status == "blue")
-  {
-    controlLEDs(LOW, HIGH, LOW);
-    Serial.println("Turning the YELLOW LED ON");
-  }
-  else if (status == "green")
-  {
-    controlLEDs(LOW, LOW, HIGH);
-    Serial.println("Turning the GREEN LED ON");
-  }
-  else if (status == "OFF")
-  {
-    controlLEDs(LOW, LOW, LOW);
-    Serial.println("Turning all LEDs OFF");
-  }
-  else
-  {
-    Serial.println("Unknown status received from Firebase: " + status);
-  }
-
-  delay(1000); // Adjust the delay as needed
+  
+  delay(500);
 }
 
-void connectToWiFi()
-{
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  Serial.print("Connecting to WiFi");
-  while (WiFi.status() != WL_CONNECTED)
-  {
+void setupNetworkAndDatabase() {
+  Serial.print("Establishing WiFi connection");
+  WiFi.begin(WIFI_NAME, WIFI_PASS);
+  
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
     Serial.print(".");
-    delay(1000);
   }
-  Serial.println("\nConnected to WiFi");
-  Serial.print("Local IP Address: ");
+  
+  Serial.println("\nWiFi connected successfully");
+  Serial.print("Device IP: ");
   Serial.println(WiFi.localIP());
-  Serial.println();
-}
-
-void initializeFirebase()
-{
-  Firebase.begin(FIREBASE_HOST, FIREBASE_AUTH, WIFI_SSID, WIFI_PASSWORD);
+  
+  Firebase.begin(FIREBASE_URL, FIREBASE_SECRET, WIFI_NAME, WIFI_PASS);
   Firebase.reconnectWiFi(true);
 }
 
-void setFirebaseStatus(const String &status)
-{
-  if (Firebase.setString(firebaseData, firebasePath, status))
-  {
-    Serial.println("Firebase status updated to: " + status);
-  }
-  else
-  {
-    Serial.println("Failed to update Firebase status. Error: " + firebaseData.errorReason());
+void updateDatabaseState(const String& state) {
+  if (Firebase.setString(fbData, FIREBASE_DATA_PATH, state)) {
+    Serial.println("Firebase state updated to: " + state);
+  } else {
+    Serial.println("Failed to update Firebase state. Reason: " + fbData.errorReason());
   }
 }
 
-String getFirebaseStatus()
-{
-  if (Firebase.getString(firebaseData, firebasePath))
-  {
-    return firebaseData.stringData();
-  }
-  else
-  {
-    Serial.println("Failed to retrieve Firebase status. Error: " + firebaseData.errorReason());
+String readDatabaseState() {
+  if (Firebase.getString(fbData, FIREBASE_DATA_PATH)) {
+    return fbData.stringData();
+  } else {
+    Serial.println("Failed to fetch Firebase state. Reason: " + fbData.errorReason());
     return "ERROR";
   }
 }
 
-void controlLEDs(int red, int yellow, int green)
-{
-  
-  digitalWrite(RED_LED_PIN, red);
-  digitalWrite(BLUE_LED_PIN, yellow);
-  digitalWrite(GREEN_LED_PIN, green);
+void setLightStates(bool red, bool yellow, bool green) {
+  digitalWrite(LED_RED, red ? HIGH : LOW);
+  digitalWrite(LED_YELLOW, yellow ? HIGH : LOW);
+  digitalWrite(LED_GREEN, green ? HIGH : LOW);
 }

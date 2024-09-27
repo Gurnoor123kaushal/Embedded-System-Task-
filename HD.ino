@@ -6,8 +6,8 @@
 #define FIREBASE_HOST "trafficlight-1b841-default-rtdb.firebaseio.com"
 #define FIREBASE_AUTH "NZwCPCBdtGJMRdA4MTNkLTjrYmaYIeoK0sgEU8RT"
 // WiFi credentials
-#define WIFI_SSID "Harry"
-#define WIFI_PASSWORD "nntf3751"
+#define WIFI_SSID "Gurnoor "
+#define WIFI_PASSWORD "GunroorIphone"
 
 // Firebase data path
 const String firebasePath = "/Light/LED";
